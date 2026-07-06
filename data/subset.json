@@ -1,0 +1,9 @@
+{
+  "description": "Hard-case-weighted 30-ticket subset. Includes all four confusable-pattern groups from the source dataset plus a stratified sample of the rest, so the benchmark concentrates on tickets where config differences should show. Accuracy numbers here are not comparable to full-dataset runs — the subset is deliberately harder.",
+  "ids": [
+    "T003", "T006", "T007", "T008", "T009", "T010", "T060",
+    "T011", "T012", "T014", "T018", "T020", "T028", "T054", "T059",
+    "T029", "T030", "T031", "T032", "T033", "T034", "T050", "T051", "T055",
+    "T035", "T036", "T041", "T045", "T048", "T053"
+  ]
+}
