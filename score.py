@@ -3,6 +3,7 @@
 QA-reviewed config — whether the reviewer earned its cost (catch rate vs harm rate)."""
 
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -39,6 +40,11 @@ def main() -> None:
         lat = sum(r["latency_s"] for r in rows.values()) / n
         stats[config] = dict(rows=rows, n=n, sev_ok=sev_ok, route_ok=route_ok,
                              p1_ok=p1_ok, p1_n=len(p1_ids), under=under, cost=cost, lat=lat)
+
+    if not stats:
+        # Raw outputs are gitignored, so a fresh clone has nothing to score. Bail out
+        # rather than overwrite the committed scorecard with an empty table.
+        sys.exit("No results/raw_*.jsonl found — run bench.py first. Leaving results/scorecard.md untouched.")
 
     lines.append("| Config | Severity | Routing | P1 catch | Under-triage | Cost/ticket | Avg latency |")
     lines.append("|---|---|---|---|---|---|---|")
