@@ -102,9 +102,16 @@ def main() -> None:
     if config not in RUNNERS:
         sys.exit("usage: python3 bench.py A|B|C")
 
-    subset_ids = set(json.loads((ROOT / "data" / "subset.json").read_text())["ids"])
+    subset = json.loads((ROOT / "data" / "subset.json").read_text())["ids"]
+    subset_ids = set(subset)
     tickets = [json.loads(l) for l in (ROOT / "data" / "tickets.jsonl").open()
                if json.loads(l)["id"] in subset_ids]
+    # A typo'd or repeated id would otherwise silently shrink the benchmark and every
+    # per-ticket figure downstream would be over the wrong n.
+    unknown = sorted(subset_ids - {t["id"] for t in tickets})
+    dupes = sorted({i for i in subset if subset.count(i) > 1})
+    if unknown or dupes:
+        sys.exit(f"data/subset.json is bad — unknown ids: {unknown or 'none'}; duplicate ids: {dupes or 'none'}")
     out_path = ROOT / "results" / f"raw_{config}.jsonl"
 
     done = set()
