@@ -61,7 +61,7 @@ class BenchSubsetTest(unittest.TestCase):
     def test_valid_subset_runs_every_ticket(self):
         self.set_subset(["T001", "T002"])
         self.run_bench()
-        rows = [json.loads(l) for l in self.raw.open()]
+        rows = [json.loads(l) for l in self.raw.read_text().splitlines()]
         self.assertEqual([r["id"] for r in rows], ["T001", "T002"])
 
 
