@@ -29,6 +29,9 @@ def main() -> None:
         if not path.exists():
             continue
         rows = {pid: r for pid, r in load_jsonl(path).items() if "error" not in r}
+        if not rows:
+            print(f"Config {config}: every row in {path.name} is an error, skipping", file=sys.stderr)
+            continue
         n = len(rows)
         sev_ok = sum(1 for pid, r in rows.items() if r["severity"] == truth[pid]["true_severity"])
         route_ok = sum(1 for pid, r in rows.items() if r["routing"] == truth[pid]["true_routing"])

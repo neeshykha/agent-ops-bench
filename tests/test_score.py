@@ -48,6 +48,18 @@ class ScoreTest(unittest.TestCase):
             self.run_score()
         self.assertEqual(self.scorecard.read_text(), committed)
 
+    def test_all_error_raw_file_is_skipped_not_crashed(self):
+        # bench.py records a failed ticket as {"id": ..., "error": ...}; a run where every
+        # ticket failed must not take the whole scorecard down with a ZeroDivisionError.
+        write_jsonl(self.tmp / "results" / "raw_A.jsonl",
+                    [{"id": "T003", "error": "claude CLI exited 1: boom"}])
+        write_jsonl(self.tmp / "results" / "raw_B.jsonl",
+                    [{"id": "T003", "severity": "P1", "routing": "Environmental Monitoring",
+                      "cost_usd": 0.1, "latency_s": 5.0, "calls": 2}])
+        report = self.run_score()
+        self.assertNotIn("Generalist (1 call)", report)
+        self.assertIn("| Specialists (2 calls) | 1/1 (100%) | 1/1 (100%) | 1/1 | 0 | $0.100 | 5.0s |", report)
+
 
 if __name__ == "__main__":
     unittest.main()
