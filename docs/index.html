@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Ops Bench Results</title>
+<meta name="description" content="Committed results of a single-agent vs multi-agent support-triage benchmark: accuracy, cost, latency, and whether a QA reviewer agent paid for itself.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5c5c5c;
+    --line: #d9d9d9;
+    --accent: #0b5cad;
+    --lead-bg: #f3f6fa;
+    --good: #1d7a3a;
+    --bad: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121417;
+      --fg: #e6e6e6;
+      --muted: #a3a3a3;
+      --line: #33373d;
+      --accent: #7db4ef;
+      --lead-bg: #1b2027;
+      --good: #6cc98a;
+      --bad: #f08a84;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121417;
+    --fg: #e6e6e6;
+    --muted: #a3a3a3;
+    --line: #33373d;
+    --accent: #7db4ef;
+    --lead-bg: #1b2027;
+    --good: #6cc98a;
+    --bad: #f08a84;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 44rem; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 36px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 20px 0 6px; }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .lead { background: var(--lead-bg); border-left: 4px solid var(--accent); padding: 14px 16px; margin: 0 0 8px; }
+  .lead p:first-child { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+  .lead p:last-child { margin-bottom: 0; }
+  .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+  th { font-weight: 600; }
+  th.num, td.num { text-align: right; }
+  td.best { font-weight: 700; }
+  .note { color: var(--muted); font-size: 0.9rem; }
+  dl { margin: 0 0 12px; }
+  dt { font-weight: 600; margin-top: 10px; }
+  dd { margin: 2px 0 0; }
+  ul { padding-left: 20px; margin: 0 0 12px; }
+  li { margin-bottom: 6px; }
+  code { font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  details { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details ul { margin-top: 10px; }
+  .good { color: var(--good); }
+  .bad { color: var(--bad); }
+  footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 0.9rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Agent Ops Bench — results</h1>
+  <p class="sub">Does adding a second AI agent to support-ticket triage actually help? One generalist agent, two specialists, and a generalist plus a QA reviewer, run over the same 30 labeled tickets. Every number on this page is copied from the committed <a href="https://github.com/neeshykha/agent-ops-bench/blob/master/results/scorecard.md">results/scorecard.md</a>.</p>
+
+  <div class="lead">
+    <p>The QA reviewer paid for itself on the hard cases: 9 overrides on 30 tickets, 6 of which fixed a first-pass error and 2 of which broke a correct call — +4 net corrections at $0.60 each.</p>
+    <p>The reviewer added $0.080 per ticket. With it, severity accuracy rose from 70% to 80%, every labeled P1 was caught (7/7, versus 6/7 for the single agent), and the two "resolved lockout still classified urgent" tickets — the documented weak spot of the underlying classifier — were both corrected. The price is latency: the review is a second, sequential call, so time per ticket doubled (5.1s → 10.4s).</p>
+  </div>
+  <p class="note">Single run per configuration on a deliberately hard 30-ticket subset. What that does and doesn't support is spelled out under <a href="#method">How it was measured</a>.</p>
+
+  <h2>Results by configuration</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Config</th>
+          <th class="num">Severity</th>
+          <th class="num">Routing</th>
+          <th class="num">P1 catch</th>
+          <th class="num">Under-triage</th>
+          <th class="num">Cost/ticket</th>
+          <th class="num">Avg latency</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A · Generalist (1 call)</td>
+          <td class="num">21/30 (70%)</td>
+          <td class="num">25/30 (83%)</td>
+          <td class="num">6/7</td>
+          <td class="num">5</td>
+          <td class="num best">$0.080</td>
+          <td class="num best">5.1s</td>
+        </tr>
+        <tr>
+          <td>B · Specialists (2 parallel calls)</td>
+          <td class="num">21/30 (70%)</td>
+          <td class="num best">29/30 (97%)</td>
+          <td class="num">7/7</td>
+          <td class="num">5</td>
+          <td class="num">$0.149</td>
+          <td class="num">5.2s</td>
+        </tr>
+        <tr>
+          <td>C · Generalist + QA (2 sequential calls)</td>
+          <td class="num best">24/30 (80%)</td>
+          <td class="num">27/30 (90%)</td>
+          <td class="num">7/7</td>
+          <td class="num">6</td>
+          <td class="num">$0.160</td>
+          <td class="num">10.4s</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Bold marks the best value in each column. Under-triage counts tickets predicted less urgent than their label — the costly direction in triage.</p>
+
+  <h2>QA reviewer economics (config C)</h2>
+  <dl>
+    <dt>Overrides issued</dt>
+    <dd>9 of 30 tickets</dd>
+    <dt class="good">Catches — the reviewer fixed a first-pass error</dt>
+    <dd>6: T007, T014, T029, T030, T059, T060</dd>
+    <dt class="bad">Harms — the reviewer broke a correct first-pass call</dt>
+    <dd>2: T012, T028</dd>
+    <dt>Neither</dt>
+    <dd>1 override changed a ticket that was wrong before and still wrong after</dd>
+    <dt>Added cost vs. config A</dt>
+    <dd>$0.080 per ticket</dd>
+    <dt>Net corrections</dt>
+    <dd>+4 (6 catches − 2 harms) → $0.080 × 30 tickets ÷ 4 = <strong>$0.60 per net correction</strong></dd>
+  </dl>
+
+  <h2>Every miss, by configuration</h2>
+  <p class="note">Format: ticket · what was wrong (label → prediction) · the opening of the ticket text.</p>
+
+  <details>
+    <summary>A · Generalist — 13 misses</summary>
+    <ul>
+      <li>T006: routing "Field Service / Hardware Dispatch" → "Access Control &amp; Security" — "Front gate and lobby access panel both show offline in the dashboard as of 7am. …"</li>
+      <li>T014: severity P2 → P1 — "My unit's lock keeps saying 'device unreachable' when I try to lock or unlock fr…"</li>
+      <li>T018: severity P2 → P3 — "App keeps saying my lock is 'low battery critical' and won't let me lock remotel…"</li>
+      <li>T020: severity P2 → P1; routing "Field Service / Hardware Dispatch" → "Access Control &amp; Security" — "Access panel at the pool gate not responding to any resident fobs or the app, po…"</li>
+      <li>T029: severity P3 → P2 — "Had an app lock issue yesterday evening, used my keypad code as backup and got i…"</li>
+      <li>T030: severity P3 → P2 — "Resident in 112 reported being locked out last night, our office confirmed they …"</li>
+      <li>T036: routing "Tier 1 Support" → "Access Control &amp; Security" — "Is there a way to give my dog walker a temporary door code that expires after a …"</li>
+      <li>T050: severity P3 → P4 — "App crashes every single time I try to open the energy usage tab, happens consis…"</li>
+      <li>T051: routing "Product/Engineering Bug Report" → "Access Control &amp; Security" — "Push notifications for lock activity stopped coming through about a week ago, ap…"</li>
+      <li>T053: routing "Product/Engineering Bug Report" → "Tier 1 Support" — "Dark mode setting keeps reverting to light mode every time I close and reopen th…"</li>
+      <li>T054: severity P2 → P3 — "Community room thermostat is offline, room isn't in use this week so no rush, bu…"</li>
+      <li>T055: severity P3 → P4 — "Gym access panel let me in fine today but the app still shows it as 'offline' fr…"</li>
+      <li>T060: severity P1 → P2 — "Resident in 407 says their front door lock has not responded to app, keypad, or …"</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>B · Specialists — 9 misses</summary>
+    <ul>
+      <li>T014: severity P2 → P1 — "My unit's lock keeps saying 'device unreachable' when I try to lock or unlock fr…"</li>
+      <li>T018: severity P2 → P3 — "App keeps saying my lock is 'low battery critical' and won't let me lock remotel…"</li>
+      <li>T020: severity P2 → P3; routing "Field Service / Hardware Dispatch" → "Access Control &amp; Security" — "Access panel at the pool gate not responding to any resident fobs or the app, po…"</li>
+      <li>T029: severity P3 → P2 — "Had an app lock issue yesterday evening, used my keypad code as backup and got i…"</li>
+      <li>T030: severity P3 → P2 — "Resident in 112 reported being locked out last night, our office confirmed they …"</li>
+      <li>T050: severity P3 → P4 — "App crashes every single time I try to open the energy usage tab, happens consis…"</li>
+      <li>T051: severity P3 → P2 — "Push notifications for lock activity stopped coming through about a week ago, ap…"</li>
+      <li>T054: severity P2 → P3 — "Community room thermostat is offline, room isn't in use this week so no rush, bu…"</li>
+      <li>T055: severity P3 → P4 — "Gym access panel let me in fine today but the app still shows it as 'offline' fr…"</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>C · Generalist + QA — 9 misses</summary>
+    <ul>
+      <li>T006: routing "Field Service / Hardware Dispatch" → "Access Control &amp; Security" — "Front gate and lobby access panel both show offline in the dashboard as of 7am. …"</li>
+      <li>T012: severity P2 → P3 — "Bedroom thermostat shows offline in the app, has been since yesterday. Can't adj…"</li>
+      <li>T018: severity P2 → P3 — "App keeps saying my lock is 'low battery critical' and won't let me lock remotel…"</li>
+      <li>T020: routing "Field Service / Hardware Dispatch" → "Access Control &amp; Security" — "Access panel at the pool gate not responding to any resident fobs or the app, po…"</li>
+      <li>T028: severity P2 → P3 — "I got locked out this morning but used the backup keypad code and got in fine. J…"</li>
+      <li>T050: severity P3 → P4 — "App crashes every single time I try to open the energy usage tab, happens consis…"</li>
+      <li>T051: routing "Product/Engineering Bug Report" → "Access Control &amp; Security" — "Push notifications for lock activity stopped coming through about a week ago, ap…"</li>
+      <li>T054: severity P2 → P3 — "Community room thermostat is offline, room isn't in use this week so no rush, bu…"</li>
+      <li>T055: severity P3 → P4 — "Gym access panel let me in fine today but the app still shows it as 'offline' fr…"</li>
+    </ul>
+  </details>
+
+  <h2 id="method">How it was measured</h2>
+
+  <h3>Workload</h3>
+  <p>60 labeled synthetic support tickets for a multifamily IoT platform (smart locks, thermostats, leak sensors, access panels, a resident app), each with a severity label (P1–P4) and one of 7 routing teams, reused from <a href="https://github.com/neeshykha/claude-triage-simulator">claude-triage-simulator</a>. The benchmark runs a 30-ticket subset weighted toward hard cases: all four "confusable pattern" groups (leak-sensor false alarms, already-resolved lockouts, multi-unit thermostat failures, understated property-manager tickets) plus a stratified sample of the rest. The subset holds 7 labeled-P1 tickets. Accuracy on it is deliberately lower than on the full set — the same generalist scores 75% severity / 87% routing on all 60.</p>
+
+  <h3>Configurations</h3>
+  <ul>
+    <li><strong>A · Generalist</strong> — one call with the full taxonomy (<code>prompts/generalist.md</code>).</li>
+    <li><strong>B · Specialists</strong> — two parallel calls: a severity assessor that never sees the routing categories and a routing dispatcher that never sees the severity taxonomy (<code>prompts/severity.md</code>, <code>prompts/routing.md</code>).</li>
+    <li><strong>C · Generalist + QA</strong> — the generalist call, then a reviewer that receives the ticket and the first-pass answer and may confirm or override, with instructions to override only for a rule-based reason (<code>prompts/qa_reviewer.md</code>).</li>
+  </ul>
+  <p>Every call is <code>claude -p … --model sonnet --output-format json</code> through the Claude Code CLI. Each configuration was run once over the subset.</p>
+
+  <h3>Metric definitions (as implemented in <code>score.py</code>)</h3>
+  <dl>
+    <dt>Severity, Routing</dt>
+    <dd>Exact match between the prediction and the label.</dd>
+    <dt>P1 catch</dt>
+    <dd>Of the 7 tickets labeled P1, how many were predicted P1.</dd>
+    <dt>Under-triage</dt>
+    <dd>Tickets predicted less urgent than their label (e.g. labeled P2, predicted P3).</dd>
+    <dt>Cost/ticket</dt>
+    <dd>Sum of the CLI-reported <code>total_cost_usd</code> across all calls, divided by tickets. Measured from the CLI's JSON envelope, not estimated from token prices.</dd>
+    <dt>Avg latency</dt>
+    <dd>The CLI-reported wall-clock duration of each invocation. Config B takes the slower of its two parallel calls; config C adds its two sequential calls.</dd>
+    <dt>Override / catch / harm</dt>
+    <dd>An override is any ticket whose final severity or routing differs from the first pass. A catch is an override that took a ticket from not-fully-correct to fully correct (both fields); a harm is the reverse. An override that leaves a ticket wrong on either field counts as neither.</dd>
+    <dt>Cost per net correction</dt>
+    <dd>(Config C cost/ticket − config A cost/ticket) × 30 tickets ÷ (catches − harms).</dd>
+  </dl>
+
+  <h3>What to keep in mind</h3>
+  <ul>
+    <li>One run per configuration, 30 tickets, no repeats — the differences are suggestive, not statistically tested. A one-ticket swing is 3.3 points of accuracy.</li>
+    <li>Config A and the first pass of config C are separate runs of the same prompt, so they do not agree ticket-for-ticket. The reviewer's catches and harms are scored against config C's own first pass; its added cost is config C minus config A.</li>
+    <li>The reviewer's prompt restates the generalist's taxonomy but adds one clause the generalist never saw: a lockout that is fully resolved with no ongoing gap is P3. Three of the nine overrides (T028, T029, T030) are the tickets that clause governs — two catches and one harm — so part of the reviewer's edge is a prompt difference, not independent auditing.</li>
+    <li>The CLI was invoked with its default tool set from the repository directory, and the harness does not record tool use, so nothing in the run rules out an agent reading the labeled dataset. There is no sign that it did.</li>
+    <li>The per-ticket raw outputs that produced these figures are gitignored; the committed scorecard is the only record of the run.</li>
+  </ul>
+
+  <footer>
+    Source: <a href="https://github.com/neeshykha/agent-ops-bench">github.com/neeshykha/agent-ops-bench</a> — <code>results/scorecard.md</code> from the initial commit (<code>832033b</code>). This page is static and contains no scripts.
+  </footer>
+</main>
+</body>
+</html>
