@@ -30,7 +30,7 @@ Three findings that generalize:
 
 **1. Specialization fixed the mechanical dimension, not the judgment one.** Giving routing its own agent with a narrower prompt took routing from 83% to 97% — but a dedicated severity specialist didn't move severity accuracy at all. Routing is mostly clean category boundaries; severity requires weighing context (is the lockout *still happening*? does "the whole floor" change the scope?). Splitting the task helps where the subtask is crisp, and does nothing where the subtask is the hard part.
 
-**2. The QA reviewer earned its cost — on exactly the failure modes you'd predict.** The reviewer issued 9 overrides: 6 fixed real first-pass errors, 2 broke correct calls, for +4 net corrections at $0.60 per net correction. What it caught is the notable part: both "resolved lockout still classified urgent" tickets (the documented weak spot from the source project's eval), and one under-triaged P1 — a resident locked out of every entry method for 36 hours that the first pass called a P2. In triage, a missed P1 is the failure that matters; a reviewer that catches those pays for itself at almost any price.
+**2. The QA reviewer earned its cost — on exactly the failure modes you'd predict.** The reviewer issued 9 overrides: 6 fixed real first-pass errors, 2 broke correct calls, for +4 net corrections at $0.60 per net correction. What it caught is the notable part: both "resolved lockout still classified urgent" tickets (the documented weak spot from the source project's eval), and one under-triaged P1 — a front-door lock dead to app, keypad, and physical key for 36 hours that the first pass called a P2. In triage, a missed P1 is the failure that matters; a reviewer that catches those pays for itself at almost any price.
 
 **3. Nothing is free — the costs just land in different budgets.** Specialists double cost but not latency (parallel calls). The QA reviewer doubles both cost and latency (sequential by design — it needs the first answer). If your triage queue is latency-sensitive, the reviewer belongs on a sampled subset or async re-check, not inline on every ticket. That's a deployment decision, not an architecture decision.
 
@@ -51,6 +51,8 @@ data/subset.json    # The 30-ticket hard-case-weighted benchmark subset
 bench.py            # Runs one config over the subset (parallel worker pool)
 score.py            # Comparison scorecard + QA reviewer economics
 results/scorecard.md
+docs/index.html     # Static report page rendering results/scorecard.md
+tests/              # Unit tests for bench.py and score.py (no CLI calls)
 ```
 
 A deliberate design note: this repo has no CLAUDE.md driving classification. Each agent's prompt is an explicit file, because config B's specialists must NOT see the full taxonomy — an auto-loaded instruction file would leak context to every agent. Controlling exactly what each agent sees is half of what "managing agents" means.
@@ -63,9 +65,10 @@ python3 bench.py A   # ~30 calls
 python3 bench.py B   # ~60 calls
 python3 bench.py C   # ~60 calls
 python3 score.py     # writes results/scorecard.md
+python3 -m unittest discover tests   # no CLI calls
 ```
 
-Runs are resumable — re-running a config skips tickets already completed. Cost and latency per call are captured from the CLI's JSON envelope, so the economics in the scorecard are measured, not estimated.
+Runs are resumable — re-running a config skips tickets already completed. Cost and latency per call are captured from the CLI's JSON envelope, so the economics in the scorecard are measured, not estimated. The per-ticket raw outputs (`results/raw_*.jsonl`) are gitignored, so `score.py` needs a fresh `bench.py` run; the committed `results/scorecard.md` is the record of the run reported above.
 
 ## Tech stack
 
